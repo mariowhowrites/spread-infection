@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -16,6 +17,19 @@ type resultPair struct {
 }
 
 func main() {
+	var worldWidth float32
+
+	if len(os.Args) > 1 {
+		worldWidth, err := strconv.ParseFloat(os.Args[1], 32)
+
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	} else {
+		worldWidth = 0
+	}
+
 	exePath, err := os.Executable()
 	if err != nil {
 		fmt.Println(err)
@@ -141,10 +155,16 @@ func main() {
 				}
 			}
 		}
-		
+
 		for _, neighbor := range ring {
 			for _, infectedTree := range treesNewlyInfected {
 				tree := coordinatePair{neighbor[0] + infectedTree[0], neighbor[1] + infectedTree[1]}
+
+				for i, coord := range tree {
+					if coord < 0 {
+						tree[i] = coord + worldWidth
+					}
+				}
 
 				processTree(newlyInfectedChannel, tree, probs)
 			}
@@ -228,7 +248,7 @@ ResultProcessLoop:
 
 	for _, resultPair := range resultsSlice {
 		exportsSlice = append(exportsSlice, exportPair{
-			Tree: []coordinatePair{resultPair.Tree},
+			Tree:          []coordinatePair{resultPair.Tree},
 			Probabilities: resultPair.Probabilities,
 		})
 	}
