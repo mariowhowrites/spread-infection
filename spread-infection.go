@@ -171,6 +171,12 @@ func main() {
 			for _, losingInfectionTree := range treesLosingInfection {
 				tree := coordinatePair{neighbor[0] + losingInfectionTree[0], neighbor[1] + losingInfectionTree[1]}
 
+				for i, coord := range tree {
+					if coord < 0 {
+						tree[i] = coord + worldWidth
+					}
+				}
+
 				processTree(losingInfectionChannel, tree, probs)
 			}
 		}
