@@ -9,25 +9,19 @@ import (
 	"strings"
 )
 
-type probabilities [3]float32
-type coordinatePair [2]float32
+type probabilities [3]float64
+type coordinatePair [2]float64
 type resultPair struct {
 	Tree          coordinatePair
 	Probabilities probabilities
 }
 
 func main() {
-	var worldWidth float32
-
-	if len(os.Args) > 1 {
-		worldWidth, err := strconv.ParseFloat(os.Args[1], 32)
-
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-	} else {
-		worldWidth = 0
+	sampleTree := coordinatePair{0, -0.5}
+	worldWidth, err := strconv.ParseFloat(os.Args[1], 64)
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
 
 	exePath, err := os.Executable()
@@ -57,7 +51,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	var probSCList []float32
+	var probSCList []float64
 	err = json.Unmarshal(probSCListJSON, &probSCList)
 	if err != nil {
 		fmt.Println(err)
@@ -70,7 +64,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	var probPFList []float32
+	var probPFList []float64
 	err = json.Unmarshal(probPFListJSON, &probPFList)
 	if err != nil {
 		fmt.Println(err)
@@ -83,7 +77,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	var probHNList []float32
+	var probHNList []float64
 	err = json.Unmarshal(probHNListJSON, &probHNList)
 	if err != nil {
 		fmt.Println(err)
@@ -136,7 +130,7 @@ func main() {
 	processRing := func(ringIndex int) {
 		ring := ringList[ringIndex]
 
-		var probSC float32
+		var probSC float64
 		if ringIndex < len(probSCList) {
 			probSC = probSCList[ringIndex]
 		} else {
@@ -160,10 +154,25 @@ func main() {
 			for _, infectedTree := range treesNewlyInfected {
 				tree := coordinatePair{neighbor[0] + infectedTree[0], neighbor[1] + infectedTree[1]}
 
-				for i, coord := range tree {
-					if coord < 0 {
-						tree[i] = coord + worldWidth
-					}
+				if tree[0] < 0 {
+					tree[0] = tree[0] + worldWidth
+				}
+
+				if tree[0] > worldWidth - 1 {
+					tree[0] = tree[0] - worldWidth
+				}
+
+				if tree[1] < -0.5 {
+					tree[1] = tree[1] + worldWidth
+				}
+
+				if tree[1] > worldWidth - 1 {
+					tree[1] = tree[1] - worldWidth
+				}
+
+				if tree == sampleTree {
+					fmt.Println("probs of sample tree", probs)
+					fmt.Println("in ring ", ringIndex)
 				}
 
 				processTree(newlyInfectedChannel, tree, probs)
@@ -171,10 +180,20 @@ func main() {
 			for _, losingInfectionTree := range treesLosingInfection {
 				tree := coordinatePair{neighbor[0] + losingInfectionTree[0], neighbor[1] + losingInfectionTree[1]}
 
-				for i, coord := range tree {
-					if coord < 0 {
-						tree[i] = coord + worldWidth
-					}
+				if tree[0] < 0 {
+					tree[0] = tree[0] + worldWidth
+				}
+
+				if tree[0] > worldWidth - 1 {
+					tree[0] = tree[0] - worldWidth
+				}
+
+				if tree[1] < -0.5 {
+					tree[1] = tree[1] + worldWidth
+				}
+
+				if tree[1] > worldWidth - 1 {
+					tree[1] = tree[1] - worldWidth
 				}
 
 				processTree(losingInfectionChannel, tree, probs)
@@ -191,11 +210,16 @@ func main() {
 	ringCount := len(ringList)
 	processedRings := 0
 	resultsSlice := make([]resultPair, 0)
-
+	
 ResultProcessLoop:
 	for {
 		select {
 		case infectedTree := <-newlyInfectedChannel:
+
+			if infectedTree.Tree == sampleTree {
+				fmt.Println("looking at sample tree in infected", infectedTree.Probabilities)
+			}
+
 			found := false
 
 			for i, result := range resultsSlice {
@@ -219,6 +243,10 @@ ResultProcessLoop:
 		case losingInfectionTree := <-losingInfectionChannel:
 			found := false
 
+			if losingInfectionTree.Tree == sampleTree {
+				fmt.Println("looking at sample tree in uninfected", losingInfectionTree.Probabilities)
+			}
+
 			for i, result := range resultsSlice {
 				if result.Tree == losingInfectionTree.Tree {
 					result.Probabilities = probabilities{
@@ -234,6 +262,14 @@ ResultProcessLoop:
 			}
 
 			if found == false {
+				var losingInfectionProbs probabilities
+
+				for i, probability := range losingInfectionTree.Probabilities {
+					losingInfectionProbs[i] = -probability
+				}
+
+				losingInfectionTree.Probabilities = losingInfectionProbs
+
 				resultsSlice = append(resultsSlice, losingInfectionTree)
 			}
 		case <-doneChannel:
@@ -259,6 +295,6 @@ ResultProcessLoop:
 		})
 	}
 
-	resultsJSON, err := json.Marshal(exportsSlice)
-	os.Stdout.WriteString(string(resultsJSON))
+	// resultsJSON, err := json.Marshal(exportsSlice)
+	// os.Stdout.WriteString(string(resultsJSON))
 }
