@@ -17,7 +17,7 @@ type resultPair struct {
 }
 
 func main() {
-	sampleTree := coordinatePair{0, -0.5}
+	// sampleTree := coordinatePair{0, -0.5}
 	worldWidth, err := strconv.ParseFloat(os.Args[1], 64)
 	if err != nil {
 		fmt.Println(err)
@@ -170,10 +170,10 @@ func main() {
 					tree[1] = tree[1] - worldWidth
 				}
 
-				if tree == sampleTree {
-					fmt.Println("probs of sample tree", probs)
-					fmt.Println("in ring ", ringIndex)
-				}
+				// if tree == sampleTree {
+				// 	fmt.Println("probs of sample tree", probs)
+				// 	fmt.Println("in ring ", ringIndex)
+				// }
 
 				processTree(newlyInfectedChannel, tree, probs)
 			}
@@ -216,9 +216,9 @@ ResultProcessLoop:
 		select {
 		case infectedTree := <-newlyInfectedChannel:
 
-			if infectedTree.Tree == sampleTree {
-				fmt.Println("looking at sample tree in infected", infectedTree.Probabilities)
-			}
+			// if infectedTree.Tree == sampleTree {
+			// 	fmt.Println("looking at sample tree in infected", infectedTree.Probabilities)
+			// }
 
 			found := false
 
@@ -243,9 +243,9 @@ ResultProcessLoop:
 		case losingInfectionTree := <-losingInfectionChannel:
 			found := false
 
-			if losingInfectionTree.Tree == sampleTree {
-				fmt.Println("looking at sample tree in uninfected", losingInfectionTree.Probabilities)
-			}
+			// if losingInfectionTree.Tree == sampleTree {
+			// 	fmt.Println("looking at sample tree in uninfected", losingInfectionTree.Probabilities)
+			// }
 
 			for i, result := range resultsSlice {
 				if result.Tree == losingInfectionTree.Tree {
@@ -295,6 +295,6 @@ ResultProcessLoop:
 		})
 	}
 
-	// resultsJSON, err := json.Marshal(exportsSlice)
-	// os.Stdout.WriteString(string(resultsJSON))
+	resultsJSON, err := json.Marshal(exportsSlice)
+	os.Stdout.WriteString(string(resultsJSON))
 }
