@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -199,7 +198,7 @@ ResultProcessLoop:
 	// fmt.Println("time elapsed: ", elapsed)
 
 	resultsJSON, err := json.Marshal(exportsSlice)
-	os.Stdout.WriteString(base64.StdEncoding.EncodeToString(resultsJSON))
+	os.Stdout.Write(resultsJSON)
 }
 
 func processRing(
