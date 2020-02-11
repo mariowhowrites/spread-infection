@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strconv"
-	"strings"
 )
 
 type probabilities [3]float64
@@ -29,24 +27,24 @@ func SpreadInfection() {
 	// startTime := time.Now()
 
 	// sampleTree := coordinatePair{0, -0.5}
-	worldWidth, err := strconv.ParseFloat(os.Args[1], 64)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	// worldWidth, err := strconv.ParseFloat(os.Args[1], 64)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	return
+	// }
 
-	// var worldWidth float64
-	// worldWidth = 1000
+	var worldWidth float64
+	worldWidth = 1000
 
-	exePath, err := os.Executable()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	lastIndex := strings.LastIndex(exePath, string(os.PathSeparator)) + 1
-	exePath = exePath[:lastIndex]
+	// exePath, err := os.Executable()
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	return
+	// }
+	// lastIndex := strings.LastIndex(exePath, string(os.PathSeparator)) + 1
+	// exePath = exePath[:lastIndex]
 
-	// exePath := "/Users/mariovega/go/infected-trees/"
+	exePath := "/Users/mariovega/go/infected-trees/"
 	// Ring List
 	ringListJSON, err := ioutil.ReadFile(exePath + "ring_list.json")
 	if err != nil {
@@ -138,9 +136,8 @@ func SpreadInfection() {
 		return
 	}
 
-	newlyInfectedChannel := make(chan []resultPair)
-	losingInfectionChannel := make(chan []resultPair)
 	doneChannel := make(chan bool)
+	resultsMap := make(resultMap, 0)
 
 	for ringIndex := range ringsList {
 		ring := ringsList[ringIndex]
@@ -157,20 +154,19 @@ func SpreadInfection() {
 
 		probs := probabilities{probSC, probPF, probHN}
 
-		go processRing(doneChannel, newlyInfectedChannel, losingInfectionChannel, &ring, probs, &treesNewlyInfected, &treesLosingInfection, worldWidth)
+		go processRing(doneChannel, &resultsMap, &ring, probs, &treesNewlyInfected, &treesLosingInfection, worldWidth)
 	}
 
 	ringCount := len(ringsList)
 	processedRings := 0
-	resultsMap := make(resultMap, 0)
 
 ResultProcessLoop:
 	for {
 		select {
-		case infectedTrees := <-newlyInfectedChannel:
-			processNewlyInfectedTrees(&infectedTrees, &resultsMap)
-		case losingInfectionTrees := <-losingInfectionChannel:
-			processLosingInfectionTrees(&losingInfectionTrees, &resultsMap)
+		// case infectedTrees := <-newlyInfectedChannel:
+		// 	processNewlyInfectedTrees(&infectedTrees, &resultsMap)
+		// case losingInfectionTrees := <-losingInfectionChannel:
+		// 	processLosingInfectionTrees(&losingInfectionTrees, &resultsMap)
 		case <-doneChannel:
 			processedRings++
 
@@ -203,8 +199,7 @@ ResultProcessLoop:
 
 func processRing(
 	doneChannel chan bool,
-	newlyInfectedChannel chan []resultPair,
-	losingInfectionChannel chan []resultPair,
+	resultsMap *resultMap,
 	ring *treeList,
 	probs probabilities,
 	treesNewlyInfected *treeList,
@@ -212,7 +207,6 @@ func processRing(
 	worldWidth float64,
 ) {
 	for _, neighbor := range *ring {
-		var potentialInfectedTrees []resultPair
 		for _, infectedTree := range *treesNewlyInfected {
 			absoluteTree := coordinatePair{neighbor[0] + infectedTree[0], neighbor[1] + infectedTree[1]}
 
@@ -232,14 +226,8 @@ func processRing(
 				absoluteTree[1] = absoluteTree[1] - worldWidth
 			}
 
-			potentialInfectedTrees = append(potentialInfectedTrees, resultPair{
-				Tree:          absoluteTree,
-				Probabilities: probs,
-			})
+			processNewlyInfectedTree(resultPair{Tree: absoluteTree, Probabilities: probs}, resultsMap)
 		}
-		newlyInfectedChannel <- potentialInfectedTrees
-
-		var potentialLosingInfectionTrees []resultPair
 
 		for _, losingInfectionTree := range *treesLosingInfection {
 			absoluteTree := coordinatePair{neighbor[0] + losingInfectionTree[0], neighbor[1] + losingInfectionTree[1]}
@@ -260,36 +248,29 @@ func processRing(
 				absoluteTree[1] = absoluteTree[1] - worldWidth
 			}
 
-			potentialLosingInfectionTrees = append(potentialLosingInfectionTrees, resultPair{
-				Tree:          absoluteTree,
-				Probabilities: probs,
-			})
+			processLosingInfectionTree(resultPair{Tree: absoluteTree, Probabilities: probs}, resultsMap)
 		}
-		losingInfectionChannel <- potentialLosingInfectionTrees
 	}
 
 	doneChannel <- true
 
 }
 
-func processLosingInfectionTrees(losingInfectionTrees *[]resultPair, resultsMap *resultMap) {
-	for _, losingInfectionTree := range *losingInfectionTrees {
-		found := maybeReduceProbabilities(losingInfectionTree, resultsMap)
+func processLosingInfectionTree(losingInfectionTree resultPair, resultsMap *resultMap) {
+	found := maybeReduceProbabilities(losingInfectionTree, resultsMap)
 
-		if found == false {
-			addLosingInfectionTree(losingInfectionTree, resultsMap)
-		}
+	if found == false {
+		addLosingInfectionTree(losingInfectionTree, resultsMap)
 	}
 }
 
-func processNewlyInfectedTrees(newlyInfectedTrees *[]resultPair, resultsMap *resultMap) {
-	for _, infectedTree := range *newlyInfectedTrees {
-		found := maybeIncreaseProbabilities(infectedTree, resultsMap)
+func processNewlyInfectedTree(infectedTree resultPair, resultsMap *resultMap) {
+	found := maybeIncreaseProbabilities(infectedTree, resultsMap)
 
-		if found == false {
-			addNewlyInfectedTree(infectedTree, resultsMap)
-		}
+	if found == false {
+		addNewlyInfectedTree(infectedTree, resultsMap)
 	}
+
 }
 
 func maybeReduceProbabilities(losingInfectionTree resultPair, resultsMap *resultMap) bool {
