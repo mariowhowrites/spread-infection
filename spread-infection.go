@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
+	"sync"
 )
 
 type probabilities [3]float64
@@ -137,7 +137,7 @@ func SpreadInfection() {
 	}
 
 	doneChannel := make(chan bool)
-	resultsMap := make(resultMap, 0)
+	var resultsMap sync.Map
 
 	for ringIndex := range ringsList {
 		ring := ringsList[ringIndex]
@@ -163,10 +163,6 @@ func SpreadInfection() {
 ResultProcessLoop:
 	for {
 		select {
-		// case infectedTrees := <-newlyInfectedChannel:
-		// 	processNewlyInfectedTrees(&infectedTrees, &resultsMap)
-		// case losingInfectionTrees := <-losingInfectionChannel:
-		// 	processLosingInfectionTrees(&losingInfectionTrees, &resultsMap)
 		case <-doneChannel:
 			processedRings++
 
@@ -181,25 +177,27 @@ ResultProcessLoop:
 		Probabilities probabilities
 	}
 
-	exportsSlice := make([]exportPair, 0, len(resultsMap))
+	exportsSlice := make([]exportPair, 0, 0)
 
-	for resultTree, probs := range resultsMap {
+	resultsMap.Range(func(resultTreeInterface interface{}, probsInterface interface{}) bool {
+		resultTree := resultTreeInterface.(coordinatePair)
+		probs := probsInterface.(probabilities)
+
 		exportsSlice = append(exportsSlice, exportPair{
 			Tree:          []coordinatePair{resultTree},
 			Probabilities: probs,
 		})
-	}
 
-	// elapsed := time.Since(startTime)
-	// fmt.Println("time elapsed: ", elapsed)
+		return true
+	})
 
-	resultsJSON, err := json.Marshal(exportsSlice)
-	os.Stdout.Write(resultsJSON)
+	// resultsJSON, err := json.Marshal(exportsSlice)
+	// os.Stdout.Write(resultsJSON)
 }
 
 func processRing(
 	doneChannel chan bool,
-	resultsMap *resultMap,
+	resultsMap *sync.Map,
 	ring *treeList,
 	probs probabilities,
 	treesNewlyInfected *treeList,
@@ -256,44 +254,7 @@ func processRing(
 
 }
 
-func processLosingInfectionTree(losingInfectionTree resultPair, resultsMap *resultMap) {
-	found := maybeReduceProbabilities(losingInfectionTree, resultsMap)
-
-	if found == false {
-		addLosingInfectionTree(losingInfectionTree, resultsMap)
-	}
-}
-
-func processNewlyInfectedTree(infectedTree resultPair, resultsMap *resultMap) {
-	found := maybeIncreaseProbabilities(infectedTree, resultsMap)
-
-	if found == false {
-		addNewlyInfectedTree(infectedTree, resultsMap)
-	}
-
-}
-
-func maybeReduceProbabilities(losingInfectionTree resultPair, resultsMap *resultMap) bool {
-	probs, found := (*resultsMap)[losingInfectionTree.Tree]
-
-	if found == false {
-		return false
-	}
-
-	reduceProbabilities(probs, losingInfectionTree, resultsMap)
-
-	return false
-}
-
-func reduceProbabilities(probs probabilities, losingInfectionTree resultPair, resultsMap *resultMap) {
-	(*resultsMap)[losingInfectionTree.Tree] = probabilities{
-		probs[0] - losingInfectionTree.Probabilities[0],
-		probs[1] - losingInfectionTree.Probabilities[1],
-		probs[2] - losingInfectionTree.Probabilities[2],
-	}
-}
-
-func addLosingInfectionTree(losingInfectionTree resultPair, resultsMap *resultMap) {
+func processLosingInfectionTree(losingInfectionTree resultPair, resultsMap *sync.Map) {
 	var losingInfectionProbs probabilities
 
 	for i, probability := range losingInfectionTree.Probabilities {
@@ -302,29 +263,37 @@ func addLosingInfectionTree(losingInfectionTree resultPair, resultsMap *resultMa
 
 	losingInfectionTree.Probabilities = losingInfectionProbs
 
-	(*resultsMap)[losingInfectionTree.Tree] = losingInfectionTree.Probabilities
+	probsInterface, found := (*resultsMap).LoadOrStore(losingInfectionTree.Tree, losingInfectionTree.Probabilities)
+
+	if found == true {
+		probs := probsInterface.(probabilities)
+
+		reduceProbabilities(probs, losingInfectionTree, resultsMap)
+	}
 }
 
-func maybeIncreaseProbabilities(infectedTree resultPair, resultsMap *resultMap) bool {
-	probs, found := (*resultsMap)[infectedTree.Tree]
+func processNewlyInfectedTree(infectedTree resultPair, resultsMap *sync.Map) {
+	probsInterface, found := (*resultsMap).LoadOrStore(infectedTree.Tree, infectedTree.Probabilities)
 
 	if found == false {
-		return false
+		probs := probsInterface.(probabilities)
+
+		increaseProbabilities(probs, infectedTree, resultsMap)
 	}
-
-	increaseProbabilities(probs, infectedTree, resultsMap)
-
-	return true
 }
 
-func increaseProbabilities(probs probabilities, infectedTree resultPair, resultsMap *resultMap) {
-	(*resultsMap)[infectedTree.Tree] = probabilities{
+func reduceProbabilities(probs probabilities, losingInfectionTree resultPair, resultsMap *sync.Map) {
+	(*resultsMap).Store(losingInfectionTree.Tree, probabilities{
+		probs[0] - losingInfectionTree.Probabilities[0],
+		probs[1] - losingInfectionTree.Probabilities[1],
+		probs[2] - losingInfectionTree.Probabilities[2],
+	})
+}
+
+func increaseProbabilities(probs probabilities, infectedTree resultPair, resultsMap *sync.Map) {
+	(*resultsMap).Store(infectedTree.Tree, probabilities{
 		infectedTree.Probabilities[0] + probs[0],
 		infectedTree.Probabilities[1] + probs[1],
 		infectedTree.Probabilities[2] + probs[2],
-	}
-}
-
-func addNewlyInfectedTree(infectedTree resultPair, resultsMap *resultMap) {
-	(*resultsMap)[infectedTree.Tree] = infectedTree.Probabilities
+	})
 }
