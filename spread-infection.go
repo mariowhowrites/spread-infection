@@ -27,17 +27,11 @@ func main() {
 
 // SpreadInfection is the main function
 func SpreadInfection() {
-	// startTime := time.Now()
-	// sampleTree := coordinatePair{0, -0.5}
-
 	worldWidth, err := strconv.ParseFloat(os.Args[1], 64)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-
-	// var worldWidth float64
-	// worldWidth = 1000
 
 	exePath, err := os.Executable()
 	if err != nil {
@@ -46,8 +40,6 @@ func SpreadInfection() {
 	}
 	lastIndex := strings.LastIndex(exePath, string(os.PathSeparator)) + 1
 	exePath = exePath[:lastIndex]
-
-	// exePath := "/Users/mariovega/go/infected-trees/"
 
 	// Ring List
 	ringListJSON, err := ioutil.ReadFile(exePath + "ring_list.json")
@@ -140,13 +132,13 @@ func SpreadInfection() {
 		return
 	}
 
-	potentialMap := make(map[string]bool)
+	potentialMap := make(map[coordinatePair]bool)
 
 	for _, tree := range potentialTrees {
-		coordString := fmt.Sprint(tree[0]) + "," + fmt.Sprint(tree[1])
-
-		potentialMap[coordString] = true
+		potentialMap[tree] = true
 	}
+
+	potentialTrees = nil
 
 	doneChannel := make(chan bool)
 	var resultsMap sync.Map
@@ -210,7 +202,7 @@ ResultProcessLoop:
 func processRing(
 	doneChannel chan bool,
 	resultsMap *sync.Map,
-	potentialTrees *map[string]bool,
+	potentialTrees *map[coordinatePair]bool,
 	ring *treeList,
 	probs probabilities,
 	treesNewlyInfected *treeList,
@@ -237,7 +229,7 @@ func processRing(
 				absoluteTree[1] = absoluteTree[1] - worldWidth
 			}
 
-			_, found := (*potentialTrees)[fmt.Sprint(absoluteTree[0])+","+fmt.Sprint(absoluteTree[1])]
+			_, found := (*potentialTrees)[absoluteTree]
 
 			if found {
 				processNewlyInfectedTree(resultPair{Tree: absoluteTree, Probabilities: probs}, resultsMap)
@@ -263,7 +255,7 @@ func processRing(
 				absoluteTree[1] = absoluteTree[1] - worldWidth
 			}
 
-			_, found := (*potentialTrees)[fmt.Sprint(absoluteTree[0])+","+fmt.Sprint(absoluteTree[1])]
+			_, found := (*potentialTrees)[absoluteTree]
 
 			if found {
 				processLosingInfectionTree(resultPair{Tree: absoluteTree, Probabilities: probs}, resultsMap)
