@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -25,26 +28,26 @@ func main() {
 // SpreadInfection is the main function
 func SpreadInfection() {
 	// startTime := time.Now()
-
 	// sampleTree := coordinatePair{0, -0.5}
-	// worldWidth, err := strconv.ParseFloat(os.Args[1], 64)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	return
-	// }
+	
+	worldWidth, err := strconv.ParseFloat(os.Args[1], 64)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-	var worldWidth float64
-	worldWidth = 1000
+	// var worldWidth float64
+	// worldWidth = 1000
 
-	// exePath, err := os.Executable()
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	return
-	// }
-	// lastIndex := strings.LastIndex(exePath, string(os.PathSeparator)) + 1
-	// exePath = exePath[:lastIndex]
+	exePath, err := os.Executable()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	lastIndex := strings.LastIndex(exePath, string(os.PathSeparator)) + 1
+	exePath = exePath[:lastIndex]
 
-	exePath := "/Users/mariovega/go/infected-trees/"
+	// exePath := "/Users/mariovega/go/infected-trees/"
 	// Ring List
 	ringListJSON, err := ioutil.ReadFile(exePath + "ring_list.json")
 	if err != nil {
@@ -191,8 +194,8 @@ ResultProcessLoop:
 		return true
 	})
 
-	// resultsJSON, err := json.Marshal(exportsSlice)
-	// os.Stdout.Write(resultsJSON)
+	resultsJSON, err := json.Marshal(exportsSlice)
+	os.Stdout.Write(resultsJSON)
 }
 
 func processRing(
@@ -251,7 +254,6 @@ func processRing(
 	}
 
 	doneChannel <- true
-
 }
 
 func processLosingInfectionTree(losingInfectionTree resultPair, resultsMap *sync.Map) {
@@ -261,9 +263,7 @@ func processLosingInfectionTree(losingInfectionTree resultPair, resultsMap *sync
 		losingInfectionProbs[i] = -probability
 	}
 
-	losingInfectionTree.Probabilities = losingInfectionProbs
-
-	probsInterface, found := (*resultsMap).LoadOrStore(losingInfectionTree.Tree, losingInfectionTree.Probabilities)
+	probsInterface, found := (*resultsMap).LoadOrStore(losingInfectionTree.Tree, losingInfectionProbs)
 
 	if found == true {
 		probs := probsInterface.(probabilities)
@@ -275,7 +275,7 @@ func processLosingInfectionTree(losingInfectionTree resultPair, resultsMap *sync
 func processNewlyInfectedTree(infectedTree resultPair, resultsMap *sync.Map) {
 	probsInterface, found := (*resultsMap).LoadOrStore(infectedTree.Tree, infectedTree.Probabilities)
 
-	if found == false {
+	if found == true {
 		probs := probsInterface.(probabilities)
 
 		increaseProbabilities(probs, infectedTree, resultsMap)
