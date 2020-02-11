@@ -29,7 +29,7 @@ func main() {
 func SpreadInfection() {
 	// startTime := time.Now()
 	// sampleTree := coordinatePair{0, -0.5}
-	
+
 	worldWidth, err := strconv.ParseFloat(os.Args[1], 64)
 	if err != nil {
 		fmt.Println(err)
@@ -48,6 +48,7 @@ func SpreadInfection() {
 	exePath = exePath[:lastIndex]
 
 	// exePath := "/Users/mariovega/go/infected-trees/"
+
 	// Ring List
 	ringListJSON, err := ioutil.ReadFile(exePath + "ring_list.json")
 	if err != nil {
@@ -139,6 +140,14 @@ func SpreadInfection() {
 		return
 	}
 
+	potentialMap := make(map[string]bool)
+
+	for _, tree := range potentialTrees {
+		coordString := fmt.Sprint(tree[0]) + "," + fmt.Sprint(tree[1])
+
+		potentialMap[coordString] = true
+	}
+
 	doneChannel := make(chan bool)
 	var resultsMap sync.Map
 
@@ -157,7 +166,7 @@ func SpreadInfection() {
 
 		probs := probabilities{probSC, probPF, probHN}
 
-		go processRing(doneChannel, &resultsMap, &ring, probs, &treesNewlyInfected, &treesLosingInfection, worldWidth)
+		go processRing(doneChannel, &resultsMap, &potentialMap, &ring, probs, &treesNewlyInfected, &treesLosingInfection, worldWidth)
 	}
 
 	ringCount := len(ringsList)
@@ -201,6 +210,7 @@ ResultProcessLoop:
 func processRing(
 	doneChannel chan bool,
 	resultsMap *sync.Map,
+	potentialTrees *map[string]bool,
 	ring *treeList,
 	probs probabilities,
 	treesNewlyInfected *treeList,
@@ -227,7 +237,11 @@ func processRing(
 				absoluteTree[1] = absoluteTree[1] - worldWidth
 			}
 
-			processNewlyInfectedTree(resultPair{Tree: absoluteTree, Probabilities: probs}, resultsMap)
+			_, found := (*potentialTrees)[fmt.Sprint(absoluteTree[0])+","+fmt.Sprint(absoluteTree[1])]
+
+			if found {
+				processNewlyInfectedTree(resultPair{Tree: absoluteTree, Probabilities: probs}, resultsMap)
+			}
 		}
 
 		for _, losingInfectionTree := range *treesLosingInfection {
@@ -249,7 +263,12 @@ func processRing(
 				absoluteTree[1] = absoluteTree[1] - worldWidth
 			}
 
-			processLosingInfectionTree(resultPair{Tree: absoluteTree, Probabilities: probs}, resultsMap)
+			_, found := (*potentialTrees)[fmt.Sprint(absoluteTree[0])+","+fmt.Sprint(absoluteTree[1])]
+
+			if found {
+				processLosingInfectionTree(resultPair{Tree: absoluteTree, Probabilities: probs}, resultsMap)
+			}
+
 		}
 	}
 
