@@ -181,22 +181,22 @@ ResultProcessLoop:
 		Probabilities probabilities
 	}
 
-	exportsSlice := make([]exportPair, 0, 0)
+	exportsSlice := make([]interface{}, 0, 0)
 
 	resultsMap.Range(func(resultTreeInterface interface{}, probsInterface interface{}) bool {
 		resultTree := resultTreeInterface.(coordinatePair)
 		probs := probsInterface.(probabilities)
 
-		exportsSlice = append(exportsSlice, exportPair{
-			Tree:          []coordinatePair{resultTree},
-			Probabilities: probs,
+		exportsSlice = append(exportsSlice, []interface{}{
+			[]coordinatePair{resultTree},
+			probs,
 		})
 
 		return true
 	})
 
 	resultsJSON, err := json.Marshal(exportsSlice)
-	os.Stdout.Write(resultsJSON)
+	fmt.Println(string(resultsJSON))
 }
 
 func processRing(
