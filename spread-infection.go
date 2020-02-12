@@ -27,6 +27,7 @@ func main() {
 
 // SpreadInfection is the main function
 func SpreadInfection() {
+	// comment out worldWidth and exePath logic for testing
 	worldWidthF64, err := strconv.ParseFloat(os.Args[1], 64)
 	if err != nil {
 		fmt.Println(err)
@@ -42,9 +43,11 @@ func SpreadInfection() {
 	lastIndex := strings.LastIndex(exePath, string(os.PathSeparator)) + 1
 	exePath = exePath[:lastIndex]
 
+	// uncomment next three lines for testing purposes
 	// var worldWidth float32
 	// worldWidth = 50
 	// exePath := "/Users/mariovega/go/infected-trees/"
+	// replace above with link to folder containing executable
 
 	// Ring List
 	ringListJSON, err := ioutil.ReadFile(exePath + "ring_list.json")
